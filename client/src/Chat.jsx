@@ -4,18 +4,41 @@ import {
     InMemoryCache,
     ApolloProvider,
     useQuery,
+    useMutation,
+    useSubscription,
     gql
   } from "@apollo/client";
+
+import {WebSocketLink} from '@apollo/client/link/ws';
 import {Container,Row, Col,FormInput,Button} from 'shards-react';
 
+
+ const link = new WebSocketLink({
+    uri: 'ws://localhost:4000/',
+    options:{
+        reconnect:true
+    }
+ })
+
   const client = new ApolloClient({
-    uri: 'https://48p1r2roz4.sse.codesandbox.io',
+    link, 
+    uri: 'http://localhost:4000/',
     cache: new InMemoryCache()
   });
 
+//Unsubuscripton
+  /*const GET_MESSAGES = gql`
+    query {
+        messages {
+            id,
+            content,
+            user
+        }
+    }
+  `;*/
 
   const GET_MESSAGES = gql`
-    query {
+    subscription {
         messages {
             id,
             content,
@@ -24,9 +47,22 @@ import {Container,Row, Col,FormInput,Button} from 'shards-react';
     }
   `;
 
+    const POST_MESSAGE= gql`
+        mutation postMessage($user:String!, $content:String!){
+            postMessage(user: $user ,content:$content)
+        }
+    `;
+
+
+
 
   const Messages = ({user})=>{
-      const {data} =useQuery(GET_MESSAGES);
+      //unsubcription
+     /* const {data} =useQuery(GET_MESSAGES,{
+          pollInterval:500
+      });*/
+
+    const {data} =useSubscription(GET_MESSAGES);
       if(!data) return null;
 
       return (
@@ -34,7 +70,7 @@ import {Container,Row, Col,FormInput,Button} from 'shards-react';
         <div>
             {
                 data.messages.map(({id,user:messageUser,content})=>(
-                    <div style={{
+                    <div key={id} style={{
                         display:'flex',
                         justifyContent: user === messageUser ? 'flex-end': 'flex-start',
                         paddingBottom:'1em'
@@ -84,10 +120,13 @@ import {Container,Row, Col,FormInput,Button} from 'shards-react';
         content:''
     });
 
+    const [postMessage,{data}] = useMutation(POST_MESSAGE);
 
     const onSend = ()=>{
         if(state.content.length > 0){
-
+            postMessage({
+                variables:state
+            })
         }
 
         stateSet({
@@ -107,7 +146,7 @@ import {Container,Row, Col,FormInput,Button} from 'shards-react';
                     </Col>
 
                     <Col xs={8} >
-                        <FormInput label ='User' value={state.content} onChange={ (evt)=> stateSet({
+                        <FormInput label ='Content' value={state.content} onChange={ (evt)=> stateSet({
                             ...state,
                             content:evt.target.value
                         })}
@@ -121,8 +160,8 @@ import {Container,Row, Col,FormInput,Button} from 'shards-react';
                         />
                     </Col>
 
-                    <Col xs={2} style={{padding: 0}} >
-                        <Button onClick={()=>onsuspend()}>
+                    <Col xs={2} style={{ padding: 0 }} >
+                        <Button onClick={()=>onSend()}  style={{ width: "100%" }}>
                             Send
                         </Button>
                     </Col>
